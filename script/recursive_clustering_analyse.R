@@ -16,18 +16,6 @@ option_list = list(
 
 opt = parse_args(OptionParser(option_list=option_list))
 
-dist2dataframe <- function(inDist) {
-  if (class(inDist) != "dist") stop("wrong input type")
-  A <- attr(inDist, "Size")
-  B <- if (is.null(attr(inDist, "Labels"))) sequence(A) else attr(inDist, "Labels")
-  if (isTRUE(attr(inDist, "Diag"))) attr(inDist, "Diag") <- FALSE
-  if (isTRUE(attr(inDist, "Upper"))) attr(inDist, "Upper") <- FALSE
-  data.frame(
-    row = B[unlist(lapply(sequence(A)[-1], function(x) x:A))],
-    col = rep(B[-length(B)], (length(B)-1):1),
-    value = as.vector(inDist))
-}
-
 get_kmer_table = function(input_file){
 	kmer_table = read.csv(input_file, sep="", stringsAsFactors=FALSE, row.names = 1)
 	return (kmer_table)
@@ -52,25 +40,19 @@ clustering_1 = function(data){
 	return(kmeans_1$cluster)
 }
 
-clustering_2 = function(data,size){
-
+clustering_2 = function(data,size,nb_comp){
+	print("dim:data:clustering_2")
+	print(dim(data))
 	if (nrow(data) < size){
 		sample_1_id = rownames(data)
 	}
 	else {
 		sample_1_id = sample(rownames(data),size)
 	}
-
-	if(ncol(data)>100){
-		sample_1_dist = dist(data[sample_1_id,1:100],method = "euclidean") # avant data[sample_1_id,1:100] sauf que probleme quand moins de 100 colonnes..
-	  hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
-		hc_subtree_n = cutree(hc_1, 2)
-	}else{
-			sample_1_dist = dist(data[sample_1_id,],method = "euclidean") # avant data[sample_1_id,1:100] sauf que probleme quand moins de 100 colonnes..
-			hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
-			hc_subtree_n = cutree(hc_1, 2)
-	}
-
+	# prendre les 10% des valeurs propres
+	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean") # avant data[sample_1_id,1:100] sauf que probleme quand moins de 100 colonnes..
+  hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
+	hc_subtree_n = cutree(hc_1, 2)
 
 	if (nrow(data) < size){
 		return(list("classes" = hc_subtree_n, "subtree"  = hc_subtree_n, "DIST" = sample_1_dist))
@@ -91,6 +73,7 @@ test_selfpairmate = function(h_clust, mp){
 	f.mat = as.matrix(h_clust$DIST)
 
 	f.mat[f.mat == 0] = 999
+	#print(f.mat)
 	result <- t(sapply(seq(nrow(f.mat)), function(i) {
  		 j <- which.min(f.mat[i,])
   		c(paste(rownames(f.mat)[i], colnames(f.mat)[j], sep='/'), f.mat[i,j])
@@ -118,6 +101,9 @@ test_selfpairmate = function(h_clust, mp){
 
 
 clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
+	print("______________________________________________________")
+	print("dim:data:clusterize_me")
+	print(dim(data))
 	mycol = c("#002b36","#dc322f")
 	adj_col  = adjustcolor(col = mycol, alpha.f = 4/10)
 	palette(adj_col)
@@ -131,9 +117,21 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 	names(clusters_alt)=row.names(data)
 	fileid = filename
 	sub_data = data[,check_kmer != 0]
+	print("dim de sub_data")
+	print(dim(sub_data))
+	print(paste("START DEPTH =",n))
 	pca_1 = prcomp(sub_data)
-	clust_1 = clustering_2(pca_1$x, size = 20000)# size utile pour la lda
-	clusters = clust_1$classes
+
+#	nb_comp=ncol(pca_1$x)/10
+	if(ncol(pca_1$x)>100){
+		nb_comp=100
+	}else{
+		nb_comp=ncol(pca_1$x)
+	}
+	clust_1 = clustering_2(pca_1$x, size = 20000,nb_comp)# size utile pour la lda
+	print("Done")
+	print("Clustering")
+		clusters = clust_1$classes
 	test = test_selfpairmate(clust_1, mp = matepair)
 	maintitle = paste(test$intra_AA,test$intra_BB)
     labA = paste("PC1 (",round(pca_1$sdev[1],5)*100,"% )")
@@ -141,12 +139,20 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 
 	par(mar=c(5,5,4,2)+0.1)
 	#	plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25, col=clust_1$classes,cex = 0.5 , pch = 16, xlab= labA, ylab = labB)
-	plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25, col = clust_1$classes,cex = 0.5 , pch = 16, xlab= labA, ylab = labB)
-	plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25,col = b_col,cex = 0.5 , pch = 16, xlab= labA, ylab = labB)
+	plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25, col = clust_1$classes,cex = 1 , pch = 16, xlab= labA, ylab = labB)
+	plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25,col = b_col,cex = 1 , pch = 16, xlab= labA, ylab = labB)
 	dev.off()
-
+print("###########################################")
+	print(fileid)
+	print("dim of data:")
+	print(dim(data))
+	print("proportions:")
+	print(paste(sum(clusters == 1),sum(clusters == 2)))
+	print("Pair Mate frequency:")
+	print(paste(test$intra_AA,test$intra_BB))
 
 	if (test$test) {
+		print("test ok")
 		clusters1=clusterize_me(data[names(clusters[clusters==1]),], n=n+1,wkfile, filename = paste(fileid,n, "A", sep="_"),lim = size,matepair=matepair)
 		clusters1bis=paste(clusters1, n, "A", sep="_")
 		names(clusters1bis)=names(clusters1)
