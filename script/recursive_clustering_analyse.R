@@ -80,10 +80,18 @@ clustering_2 = function(data,size){
 	#	colnames(sample_1_dist_matrix) = sample_1_id
 	#	print("dist object")
 	#	sample_1_dist= dist(sample_1_dist_matrix)
+	if(nrow(data)<=100){
 	sample_1_dist = dist(data[sample_1_id,1:100],method = "euclidean") # avant data[sample_1_id,1:100] sauf que probleme quand moins de 100 colonnes..
 	print("HCLUST")
   	hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
 	hc_subtree_n = cutree(hc_1, 2)
+}else{
+	sample_1_dist = dist(data[sample_1_id,1:100],method = "euclidean") # avant data[sample_1_id,1:100] sauf que probleme quand moins de 100 colonnes..
+	print("HCLUST")
+		hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
+	hc_subtree_n = cutree(hc_1, 2)
+}
+
 	print("LDA")
 
 	if (nrow(data) < size){
@@ -331,7 +339,7 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 	#	write.table(x = data,file = paste("./results/",species,".data_pcabug.txt",sep=''))
 	#	pca_1 = prcomp(data)
 	#	pca_1 = princomp(data)
-	
+
 	pca_1 = prcomp(sub_data)
 	print(dim(pca_1$x))
 	print("Done")
