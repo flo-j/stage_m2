@@ -1,4 +1,17 @@
 #!/usr/bin/Rscript
+
+# A computer program does what you tell it to do, not what you want it to do -- Greer's Law
+
+#AUTHOR : Sebastien Bridel, Florence Jornod <florence@jornod.com>
+
+#################################################################################
+#This work is licensed under the Creative Commons Attribution-ShareAlike 3.0
+#Unported License. To view a copy of this license,
+#visit http://creativecommons.org/licenses/by-sa/3.0/
+# or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+#################################################################################
+
+
 require(optparse)
 require(ape)
 require(MASS)
@@ -163,14 +176,14 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 print("debut du programme")
 if ( !(is.null(opt$kmer_file) ) ) {
 	species = input_species(opt$kmer_file)
-	dir.create("results")
+	# create different directory
 	dirname_temp = paste("results/",species,sep='')
-	dir.create(dirname_temp)
 	dirname = paste(dirname_temp,"/mp_",opt$matepair,'/',sep='')
 	dirnamepca=paste(dirname_temp,"/mp_",opt$matepair,"/plot/",sep='')
-	dir.create(dirname)
-	dir.create(dirnamepca)
+	dir.create(dirname,recursive=TRUE)
+	dir.create(dirnamepca,recursive=TRUE)
 	file1 = paste(dirnamepca,species,"_plot_pca",sep = '')
+
 	options(warn=1)
 	kmer_table = get_kmer_table(opt$kmer_file)
 	size = nrow(kmer_table)
