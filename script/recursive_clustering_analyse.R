@@ -19,10 +19,14 @@ require(MASS)
 # Ce script permets de faire un clustering récursif sur des données en table (table de fréquence de kmer)
 
 # Exemple d'appel:
-# Rscript --no-save --no-restore --verbose recursive_clustering_analyse.R --kmer_file ../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5 --matepair 0.96
+# Rscript --no-save --no-restore --verbose recursive_clustering_analyse.R --kmer_file ../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5 --matepair 0.96 --nb_comp 10
 
-#Recuperation des options 
-option_list = list(make_option(c("--kmer_file"), action="store", default=NULL, type='character',help="INPUT kmer table file"),make_option(c("--matepair"), action="store", default=NULL, type='character',help="Set mate pair threshold"))
+#Recuperation des options
+option_list = list(make_option(c("--kmer_file"), action="store", default=NULL, type='character',help="INPUT kmer table file"),
+make_option(c("--matepair"), action="store", default=NULL, type='character',help="Set mate pair threshold"),
+make_option(c("--nb_comp"), action="store", default=nrow(data), type='character', help="number of composant for the pca"),
+make_option(c("--percent_comp"),action="store",default=1,type='character',help="percent of composant used for the pca"))
+
 
 opt = parse_args(OptionParser(option_list=option_list))
 
@@ -63,8 +67,8 @@ clustering_2 = function(data,size,nb_comp){
 	}else{
 		sample_1_id = sample(rownames(data),size)
 	}
-	# prendre les 10% des valeurs propres
-	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean") 
+	nb_comp = nb_comp/opt$percent_comp
+	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean")
 	hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
 	hc_subtree_n = cutree(hc_1, 2)
 
@@ -133,11 +137,9 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 	pca_1 = prcomp(sub_data)
 
 	#	nb_comp=ncol(pca_1$x)/10
-	if(ncol(pca_1$x)>100){
-		nb_comp=100
-	}else{
-		nb_comp=ncol(pca_1$x)
-	}
+
+	nb_comp=opt$nb_comp
+
 	print("Clustering")
 	clust_1 = clustering_2(pca_1$x, size = 20000,nb_comp)# size utile pour la lda
 	print("Done")
