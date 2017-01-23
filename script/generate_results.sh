@@ -4,7 +4,7 @@
 
 # $1 nom du script
 #$2 data à utiliser
-for mp in $(seq 0.90 0.01 0.99);
+for mp in $(seq 0.80 0.01 0.90);
 do
   echo "matepair"
   matepair=$(echo $mp | sed "s/,/\./")

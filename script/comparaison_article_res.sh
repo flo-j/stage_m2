@@ -19,9 +19,9 @@ sort $2 > $2.sort
 cut -d' ' -f2 $1.without_quote_sort > $1.col2
 cut -d' ' -f2 $2.sort | cut -d'_' -f2 > $2.col2
 # on combine les deux deuxiemes colonnes dans un seul fichier
-paste $1.col2 $2.col2 > fusion.txt
+paste $1.col2 $2.col2 > $4fusion.txt
 # on garde que les lignes uniques pour plus de lisibilité
-sort fusion.txt |uniq -c > $4mp_$3_res_comparaison.txt
+sort $4fusion.txt |uniq -c > $4mp_$3_res_comparaison.txt
 
 #suppression des fichiers temporaires
 rm $1.without_quote

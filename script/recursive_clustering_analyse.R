@@ -21,18 +21,22 @@ require(MASS)
 # Exemple d'appel:
 # Rscript --no-save --no-restore --verbose recursive_clustering_analyse.R --kmer_file ../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5 --matepair 0.96
 
+#Recuperation des options 
 option_list = list(make_option(c("--kmer_file"), action="store", default=NULL, type='character',help="INPUT kmer table file"),make_option(c("--matepair"), action="store", default=NULL, type='character',help="Set mate pair threshold"))
 
 opt = parse_args(OptionParser(option_list=option_list))
 
+#recuperation de la table des kmers
 get_kmer_table = function(input_file){
 	kmer_table = read.csv(input_file, sep="", stringsAsFactors=FALSE, row.names = 1)
 	return (kmer_table)
 }
 
+#normalisation des kmers
 normalize_kmer = function (col_kmer){
 	return ( ((col_kmer)-mean(col_kmer)) / sd(col_kmer))
 }
+
 
 input_species = function(input_file){
 	sub_str = strsplit(input_file,split = "/")
@@ -44,11 +48,13 @@ input_species = function(input_file){
 	return (species)
 }
 
+# clustering avec kmeans
 clustering_1 = function(data){
 	kmeans_1 = kmeans(data,centers = 2,iter.max = 500,nstart=100)
 	return(kmeans_1$cluster)
 }
 
+#clustering avec hclust
 clustering_2 = function(data,size,nb_comp){
 	print("dim:data:clustering_2")
 	print(dim(data))
@@ -58,7 +64,7 @@ clustering_2 = function(data,size,nb_comp){
 		sample_1_id = sample(rownames(data),size)
 	}
 	# prendre les 10% des valeurs propres
-	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean") # avant data[sample_1_id,1:100] sauf que probleme quand moins de 100 colonnes..
+	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean") 
 	hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
 	hc_subtree_n = cutree(hc_1, 2)
 
