@@ -24,8 +24,8 @@ require(MASS)
 #Recuperation des options
 option_list = list(make_option(c("--kmer_file"), action="store", default=NULL, type='character',help="INPUT kmer table file"),
 make_option(c("--matepair"), action="store", default=NULL, type='character',help="Set mate pair threshold"),
-make_option(c("--nb_comp"), action="store", default=nrow(data), type='character', help="number of composant for the pca"),
-make_option(c("--percent_comp"),action="store",default=1,type='character',help="percent of composant used for the pca"))
+make_option(c("--nb_comp"), action="store", default=-1, type='integer', help="number of composant for the pca"),
+make_option(c("--percent_comp"),action="store", default=100, type='integer', help="percent of composant used for the pca"))
 
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -67,7 +67,12 @@ clustering_2 = function(data,size,nb_comp){
 	}else{
 		sample_1_id = sample(rownames(data),size)
 	}
-	nb_comp = nb_comp/opt$percent_comp
+	print('nrow data')
+	print(nrow(data))
+	print(nb_comp)
+	print(opt$percent)
+	nb_comp = (nb_comp/opt$percent_comp)*100
+	print(nb_comp)
 	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean")
 	hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
 	hc_subtree_n = cutree(hc_1, 2)
@@ -137,8 +142,15 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 	pca_1 = prcomp(sub_data)
 
 	#	nb_comp=ncol(pca_1$x)/10
-
-	nb_comp=opt$nb_comp
+	if(opt$nb_comp!=-1){
+	if(opt$nb_comp<nrow(sub_data)){
+		nb_comp=opt$nb_comp
+	}else{
+		nb_comp=nrow(sub_data)
+	}
+	}else{
+		nb_comp=nrow(sub_data)
+}
 
 	print("Clustering")
 	clust_1 = clustering_2(pca_1$x, size = 20000,nb_comp)# size utile pour la lda
@@ -185,9 +197,12 @@ print("debut du programme")
 if ( !(is.null(opt$kmer_file) ) ) {
 	species = input_species(opt$kmer_file)
 	# create different directory
+	print(opt$nb_comp)
+	print(opt$percent_comp)
+
 	dirname_temp = paste("results/",species,sep='')
-	dirname = paste(dirname_temp,"/mp_",opt$matepair,'/',sep='')
-	dirnamepca=paste(dirname_temp,"/mp_",opt$matepair,"/plot/",sep='')
+	dirname = paste(dirname_temp,"/mp_",opt$matepair,"nbcomp_",opt$nb_comp,"percent_",opt$percent,'/',sep='')
+	dirnamepca=paste(dirname,"/plot/",sep='')
 	dir.create(dirname,recursive=TRUE)
 	dir.create(dirnamepca,recursive=TRUE)
 	file1 = paste(dirnamepca,species,"_plot_pca",sep = '')
@@ -198,6 +213,6 @@ if ( !(is.null(opt$kmer_file) ) ) {
 	kmer_id = kmer_table$id
 	write.table(x = kmer_id,file = paste(dirname,species,".kmer_table_id.txt",sep=''))
 	all_in = clusterize_me(data = kmer_table , n=0 , wkfile = species, filename = file1 , lim =size, matepair = as.numeric(opt$matepair))
-	filename = paste(dirname,species,"mp",opt$matepair,".clustering_done.txt",sep='')
+	filename = paste(dirname,species,"mp",opt$matepair,'nb_comp',opt$nb_comp,'percent_comp',opt$percent_comp,".clustering_done.txt",sep='')
 	write.table(x = all_in, file = filename)
 }
