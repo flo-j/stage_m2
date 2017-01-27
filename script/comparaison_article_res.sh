@@ -4,8 +4,10 @@
 
 
 # on supprime les "" dans le fichier qui sort de R
-mkdir $4
+mkdir -p $4
+echo $4
 echo "BEGIN"
+echo  $1
 sed "s/\"//g" $1 > $1.without_quote
 echo "Without quote"
 # dans un premier temps on trie les deux fichiers par ordre alphabetique -> on a donc les sequences dans le meme ordre

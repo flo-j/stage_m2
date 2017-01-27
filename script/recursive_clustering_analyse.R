@@ -74,7 +74,7 @@ clustering_2 = function(data,size,nb_comp){
 	nb_comp = (nb_comp/opt$percent_comp)*100
 	print(nb_comp)
 	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean")
-	hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
+	hc_1 = hclust(d = sample_1_dist, method = "ward.D")
 	hc_subtree_n = cutree(hc_1, 2)
 
 	if (nrow(data) < size){
@@ -143,13 +143,13 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 
 	#	nb_comp=ncol(pca_1$x)/10
 	if(opt$nb_comp!=-1){
-	if(opt$nb_comp<nrow(sub_data)){
+	if(opt$nb_comp<ncol(pca_1$x)){
 		nb_comp=opt$nb_comp
 	}else{
-		nb_comp=nrow(sub_data)
+		nb_comp=ncol(pca_1$x)
 	}
 	}else{
-		nb_comp=nrow(sub_data)
+		nb_comp=ncol(pca_1$x)
 }
 
 	print("Clustering")
@@ -213,6 +213,7 @@ if ( !(is.null(opt$kmer_file) ) ) {
 	kmer_id = kmer_table$id
 	write.table(x = kmer_id,file = paste(dirname,species,".kmer_table_id.txt",sep=''))
 	all_in = clusterize_me(data = kmer_table , n=0 , wkfile = species, filename = file1 , lim =size, matepair = as.numeric(opt$matepair))
-	filename = paste(dirname,species,"mp",opt$matepair,'nb_comp',opt$nb_comp,'percent_comp',opt$percent_comp,".clustering_done.txt",sep='')
+	filename = paste(dirname,species,"mp",opt$matepair,'nb_comp_',opt$nb_comp,'percent_',opt$percent_comp,".clustering_done.txt",sep='')
 	write.table(x = all_in, file = filename)
+	print(filename)
 }
