@@ -61,19 +61,13 @@ clustering_1 = function(data){
 
 #clustering avec hclust
 clustering_2 = function(data,size,nb_comp){
-	print("dim:data:clustering_2")
-	print(dim(data))
 	if (nrow(data) < size){
 		sample_1_id = rownames(data)
 	}else{
 		sample_1_id = sample(rownames(data),size)
 	}
-	print('nrow data')
-	print(nrow(data))
-	print(nb_comp)
-	print(opt$percent)
 	nb_comp = (nb_comp/opt$percent_comp)*100
-	print(nb_comp)
+	print(length(sample_1_id))
 	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean")
 	hc_1 = hclust(d = sample_1_dist, method = "ward.D")
 	hc_subtree_n = cutree(hc_1, 2)
@@ -81,8 +75,8 @@ clustering_2 = function(data,size,nb_comp){
 	if (nrow(data) < size){
 		return(list("classes" = hc_subtree_n, "subtree"  = hc_subtree_n, "DIST" = sample_1_dist))
 	}else{
-		lda_1 = lda(x = data[sample_1_id,1:100],grouping = hc_subtree_n)
-		pred_lda = predict(lda_1, data[,1:100])
+		lda_1 = lda(x = data[sample_1_id,1:nb_comp],grouping = hc_subtree_n)
+		pred_lda = predict(lda_1, data[,1:nb_comp])
 		pred_lda$class = as.numeric(pred_lda$class)
 		names(pred_lda$class) = rownames(data)
 
@@ -113,7 +107,6 @@ test_selfpairmate = function(h_clust, mp){
 	cname_f = paste(cname_A,cname_B,sep = '')
 	intra_AA = sum(cname_f=="11") /(sum(cname_f=="12")+sum(cname_f=="11"))
 	intra_BB = sum(cname_f=="22") /(sum(cname_f=="21")+sum(cname_f=="22"))
-	print(paste("AA",intra_AA,"BB",intra_BB, "threshold", seuil))
 	if ( (intra_AA > seuil)&(intra_BB > seuil)){
 		return(list("test" = 1, "intra_AA" = intra_AA, "intra_BB" =  intra_BB, "pairmate" = result$V1))
 	}
@@ -124,7 +117,6 @@ test_selfpairmate = function(h_clust, mp){
 
 
 clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
-	print("______________________________________________________")
 
 	mycol = c("#002b36","#dc322f")
 	adj_col  = adjustcolor(col = mycol, alpha.f = 4/10)
@@ -139,7 +131,6 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 	names(clusters_alt)=row.names(data)
 	fileid = filename
 	sub_data = data[,check_kmer != 0]
-	print(paste("START DEPTH =",n))
 	pca_1 = prcomp(sub_data)
 
 	#	nb_comp=ncol(pca_1$x)/10
@@ -153,33 +144,22 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 		nb_comp=ncol(pca_1$x)
 }
 
-	print("Clustering")
+
 	clust_1 = clustering_2(pca_1$x, size = 20000,nb_comp)# size utile pour la lda
-	print("Done")
 	clusters = clust_1$classes
-	print("Test selfpairmate")
 	test = test_selfpairmate(clust_1, mp = matepair)
 	maintitle = paste(test$intra_AA,test$intra_BB)
 	labA = paste("PC1 (",round(pca_1$sdev[1],5)*100,"% )")
 	labB = paste("PC2 (",round(pca_1$sdev[2],5)*100,"% )")
-	print("Done")
-	print("PCA")
 
 	#	plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25, col=clust_1$classes,cex = 0.5 , pch = 16, xlab= labA, ylab = labB)
 	if(opt$plotpca=="yes"){
-		print("plot pca")
 		png(paste(fileid, ".%02d.png", sep=""))
 		par(mar=c(5,5,4,2)+0.1)
 		plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25, col = clust_1$classes,cex = 1 , pch = 16, xlab= labA, ylab = labB)
 		plot(pca_1$x[, c(1,2)],main = maintitle,cex.axis = 1.25, cex.lab = 1.25,col = b_col,cex = 1 , pch = 16, xlab= labA, ylab = labB)
 		dev.off()
 }
-	print("###########################################")
-	print("proportions:")
-	print(paste(sum(clusters == 1),sum(clusters == 2)))
-	print("Pair Mate frequency:")
-	print(paste(test$intra_AA,test$intra_BB))
-
 	if (test$test) {
 		print("test ok")
 		clusters1=clusterize_me(data[names(clusters[clusters==1]),], n=n+1,wkfile, filename = paste(fileid,n, "A", sep="_"),lim = size,matepair=matepair)
@@ -192,6 +172,7 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 	}
 
 	else {
+		print('test non ok')
 		return(clusters_alt)
 	}
 }
@@ -200,10 +181,9 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 #================================================================================
 print("debut du programme")
 if ( !(is.null(opt$kmer_file) ) ) {
+	Rprof("tmp.out")
 	species = input_species(opt$kmer_file)
 	# create different directory
-	print(opt$nb_comp)
-	print(opt$percent_comp)
 
 	dirname_temp = paste("results/",species,sep='')
 	dirname = paste(dirname_temp,"/mp_",opt$matepair,"nbcomp_",opt$nb_comp,"percent_",opt$percent,'/',sep='')
@@ -214,13 +194,14 @@ if ( !(is.null(opt$kmer_file) ) ) {
 
 	options(warn=1)
 	kmer_table = get_kmer_table(opt$kmer_file)
+	print("obtention de la table des kmers : DONE")
 	size = nrow(kmer_table)
 	kmer_id = kmer_table$id
 	write.table(x = kmer_id,file = paste(dirname,species,".kmer_table_id.txt",sep=''))
 	all_in = clusterize_me(data = kmer_table , n=0 , wkfile = species, filename = file1 , lim =size, matepair = as.numeric(opt$matepair))
 	filename = paste(dirname,species,"mp",opt$matepair,'nb_comp_',opt$nb_comp,'percent_',opt$percent_comp,".clustering_done.txt",sep='')
 	write.table(x = all_in, file = filename)
-	print(filename)
+	Rprof()
 }else{
 	print("no kmer_file")
 }
