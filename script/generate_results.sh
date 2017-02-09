@@ -34,5 +34,4 @@ do
     ./../stage/programme/script/comparaison_article_res.sh 'results/'$datafilename'/mp_'$matepair'nbcomp_'$nb_comp'percent_'$percent'/'$resfilename'.clustering_done.txt' ../stage/programme/data/nt_names_tags_by_position_clustering.dat2 $matepair $resdirectory
     echo "Comparaison DONE"
   done
-
 done
