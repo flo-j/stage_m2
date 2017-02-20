@@ -10,8 +10,12 @@ from rpy2.robjects.packages import importr
 import rpy2.robjects.numpy2ri
 import rpy2.robjects as robjects
 
-def get_kmer_table(kmer_file):
-    return np.genfromtxt(kmer_file,skip_header=1)
+
+def get_kmer_index(kmer_file):
+    return np.genfromtxt(kmer_file,skip_header=1,usecols=0) # on retourne que la 1ere colonne
+
+def get_kmer_table(kmer_file,nb_col):
+    return np.genfromtxt(kmer_file,skip_header=1,usecols = range(1,nb_col+1))
 
 def compute_pca(kmer_table):
     pca=PCA()
@@ -43,8 +47,11 @@ def compute_clustering_R(distance, linkage):
 time1=time.time()
 rpy2.robjects.numpy2ri.activate()
 #kmer_file=open("Homo_sapiens_HGSC.fa.regions.fst_np_L30.monomers.noN.fst_149.161_182.fst.kmers5.withoutfirstcol2","r")
-kmer_file=open("../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5.withoutfirstcol","r")
-kmer_table=get_kmer_table(kmer_file)
+kmer_file=open("../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5","r")
+kmer_name=get_kmer_index(kmer_file)
+kmer_file.close()
+kmer_file=open("../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5","r")
+kmer_table=get_kmer_table(kmer_file,1024)
 time2=time.time()
 print("obtention kmers : "),
 print(time2-time1)
