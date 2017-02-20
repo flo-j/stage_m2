@@ -5,12 +5,11 @@ import time
 from sklearn.decomposition import PCA, IncrementalPCA
 from sklearn.cluster import AgglomerativeClustering
 import scipy
-import fastcluster
+#import fastcluster
 from rpy2 import *
 from rpy2.robjects.packages import importr
 import rpy2.robjects.numpy2ri
 import rpy2.robjects as robjects
-
 def get_kmer_table(kmer_file):
     return np.genfromtxt(kmer_file,skip_header=1)
 
@@ -41,34 +40,36 @@ def plot_clustering(res_clustering,res_pca):
 def compute_clustering_R(distance, linkage):
     return r.hclust(d = distance, method = "ward.D")
 
-rpy2.robjects.numpy2ri.activate()
-kmer_file=open("../data/Homo_sapiens_HGSC.fa.regions.fst_np_L30.monomers.noN.fst_149.161_182.fst.kmers5.withoutfirstcol","r")
-#kmer_file=open("../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5.withoutfirstcol","r")
 time1=time.time()
+rpy2.robjects.numpy2ri.activate()
+kmer_file=open("Homo_sapiens_HGSC.fa.regions.fst_np_L30.monomers.noN.fst_149.161_182.fst.kmers5.withoutfirstcol2","r")
+#kmer_file=open("../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5.withoutfirstcol","r")
+#time1=time.time()
 kmer_table=get_kmer_table(kmer_file)
 time2=time.time()
+print("obtention kmers : "),
 print(time2-time1)
-print("pca")
+print("pca "),
 res_pca=compute_pca(kmer_table)
 time3=time.time()
 print(time3-time2)
-print("distance")
+print("distance "),
 distance=compute_dist(res_pca,"euclidean")
 time4=time.time()
 print(time4-time3)
-print("clustering")
-t1=time.time()
+print("clustering "),
+#t1=time.time()
 #res_clustering=compute_clustering_fast(distance, "ward")
-t2=time.time()
+#t2=time.time()
 #print res_clustering
 
-print(t2-t1)
+#print(t2-t1)
 
-t6=time.time()
+#t6=time.time()
 #res_clust=compute_clustering(res_pca,"ward")
-t7=time.time()
+#t7=time.time()
 #print res_clust
-print t7-t6
+#print t7-t6
 t8=time.time()
 #res_clustR=compute_clustering_R(distance,"linkage")
 r=robjects.r
@@ -77,6 +78,8 @@ dis=stats.as_dist(distance)
 res_clusteringR=compute_clustering_R(dis,"ward.D")
 t9=time.time()
 print t9-t8
+print("temps total ")
+print t9-time1
 # dt=np.genfromtxt(kmerfile,skip_header=1)
 # pca=PCA()
 # X_pca=pca.fit_transform(dt)

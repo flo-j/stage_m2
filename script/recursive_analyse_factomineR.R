@@ -69,8 +69,13 @@ clustering_2 = function(data,size,nb_comp){
 	}
 	nb_comp = (nb_comp/opt$percent_comp)*100
 	print(length(sample_1_id))
+	t1=Sys.time()
 	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean")
+	t2=Sys.time()
+	print(c("DISTANCE : ",t2-t1))
 	hc_1 = hclust(d = sample_1_dist, method = "ward.D")
+	t3=Sys.time()
+	print(c("HCLUST : ",t3-t2))
 	hc_subtree_n = cutree(hc_1, 2)
 
 	if (nrow(data) < size){
@@ -132,7 +137,10 @@ clusterize_me=function(data, n=0 , wkfile,filename, lim ,matepair) {
 	names(clusters_alt)=row.names(data)
 	fileid = filename
 	sub_data = data[,check_kmer != 0]
+	time1=Sys.time()
 	pca_1 = PCA(sub_data,graph=FALSE,scale.unit=FALSE,ncp=ncol(sub_data))
+	time2=Sys.time()
+	print(c("ACP : ",time2-time1))
 	#	nb_comp=ncol(pca_1$x)/10
 	if(opt$nb_comp!=-1){
 	if(opt$nb_comp<ncol(pca_1$ind$coord)){
