@@ -99,6 +99,7 @@ test_selfpairmate = function(h_clust, mp){
 	#print(f.mat)
 	result <- t(sapply(seq(nrow(f.mat)), function(i) {
 		j <- which.min(f.mat[i,])
+		print(paste(i,j,f.mat[i,j]))
 		c(paste(rownames(f.mat)[i], colnames(f.mat)[j], sep='/'), f.mat[i,j])
 	}))
 	result = as.data.frame(result)
