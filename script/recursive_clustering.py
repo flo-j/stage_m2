@@ -55,25 +55,36 @@ def compute_pairmate(cut,distance):
     mp2 = float(res.count('22'))/(res.count('21')+res.count('22'))
     return mp1,mp2
 
+def save_results(filename,res,kmer_name):
+    filename=open(filename,"w")
+    for key in res.keys():
+        for indice in res[key]:
+            towrite=str(kmer_name[indice])+"  "+str(key)+"\n"
+            filename.write(towrite)
+
+def save_results2(filename,res,kmer_name):
+    filename = open(filename,"w")
+    for i in range(len(kmer_name)):
+        for key in res.keys():
+            if i in res[key]:
+                filename.write(kmer_name[i]+"   "+str(key)+"\n")
+
 time1=time.time()
 rpy2.robjects.numpy2ri.activate()
-#kmer_file=open("Homo_sapiens_HGSC.fa.regions.fst_np_L30.monomers.noN.fst_149.161_182.fst.kmers5.withoutfirstcol2","r")
-#kmer_file=open("../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5","r")
 kmer_file="../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5"
 kmer_name=get_kmer_index(kmer_file)
 kmer_table=get_kmer_table(kmer_file,1024)
-fil=[[]]
-fil[0].append(kmer_name)
-fil[0].append(kmer_table)
+res={}
+fil=[]
+fil.append(range(1431))
 seuil=0.98
 r=robjects.r
 stats=importr("stats")
-i=0
+j=0
 while(len(fil)!=0):
     temp=[]
-    kmer=fil.pop()
-    res=[[]]
-    res_pca=compute_pca(kmer[1])
+    kmer_indice=fil.pop()
+    res_pca=compute_pca(kmer_table[kmer_indice])
     if len(res_pca) > 100:
         distance=compute_dist(res_pca[:,range(0,100)],"euclidean") # Pour avoir les 100 premieres composante de l'acp
     else :
@@ -92,20 +103,17 @@ while(len(fil)!=0):
                 group2.append(i)
             # else ERROR
         print(len(group1)," ", len(group2))
-        print(kmer[0])
-        temp.append(kmer[0][group1])
-        temp.append(kmer[1][group1,:])
-        fil.append(temp)
-        temp.append(kmer[0][group2])
-        temp.append(kmer[1][group2,:])
-        fil.append(temp)
+        fil.append(group1)
+        fil.append(group2)
     else:
-        temp2=[]
-        temp2.append(i)
-        temp2.append(kmer[0])
-        temp2.append(kmer[1])
-        res.append(temp2)
-        i=i+1
+        res[j]=kmer_indice
+        j=j+1
+
+filename="results.txt"
+save_results(filename,res,kmer_name)
+filename2="results2.txt"
+save_results2(filename2,res,kmer_name)
+
 
 # kmer_table=get_kmer_table(kmer_file,1024)
 # time2=time.time()
