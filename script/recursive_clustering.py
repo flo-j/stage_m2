@@ -1,6 +1,6 @@
 # "A computer program does what you tell it to do, not what you want it to do"
 
-#AUTHOR : Sebastien Bridel, Florence Jornod
+#AUTHOR : Florence Jornod, Sebastien Bridel
 #CONTACT ; <florence@jornod.com>
 
 ################################################################################
@@ -12,7 +12,7 @@
 
 #python3 recursive_clustering.py --pairmate 0.98 ../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5 --output TESTRES4 --sorting sequence
 
-import os
+import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -24,6 +24,7 @@ from rpy2.robjects.packages import importr
 import rpy2.robjects.numpy2ri
 import rpy2.robjects as robjects
 import argparse
+import logging
 
 def get_sequences_name(kmer_file):
     ''' get the names of each sequences who correspond of the first column of
@@ -31,16 +32,23 @@ def get_sequences_name(kmer_file):
         ARG    : - kmer_file : the file with the kmer table
         RETURN : - a 1D numpy.array with the name of the sequences
     '''
+    if verbose > 2 :
+        logging.info("get sequences name")
     return np.genfromtxt(kmer_file, skip_header=1, usecols=0, dtype=str)
 
-def get_kmer_table(kmer_file, nb_col=1024): # XXX a terme lire la premiere ligne pour savoir le nombre de colonnes
+def get_kmer_table(kmer_file):
     ''' get the names of each sequences who correspond of the kmer_file except
-        the first column. The name of each col is lost. By default the number
-        of column is 1024, the number of 5-mers possible.
+        the first column. The name of each col is lost.
         ARG    : - kmer_file : the filename with the kmer table
                  - nb_col    : the number of columns in the file
         RETURN : - a 2D numpy.array with the kmer frequencies
     '''
+    kfile=open(kmer_file,"r")
+    line=kfile.readline()
+    nb_col=len(line.split())-1
+    kfile.close()
+    if verbose > 2 :
+        logging.info("get kmer table")
     return np.genfromtxt(kmer_file, skip_header=1, usecols = range(1,nb_col+1))
 
 def compute_pca(kmer_table):
@@ -49,16 +57,23 @@ def compute_pca(kmer_table):
         RETURN : - An 2D numpy.array with the eigenvalues
     '''
     pca = PCA()
+    if verbose > 2:
+        logging.info("compute pca")
     return pca.fit_transform(kmer_table)
 
-def plot_pca(res_pca):
+def plot_pca(res_pca,output):
     ''' plot the 2 first dimension of the pca.
         ARG    : - res_pca : an 2D array with the eigenvalues
         NO RETURN
     '''
+    plt.figure()
+    output+="pca.png"
+    if verbose > 2:
+        logging.info("plot pca")
     for i in range(len(res_pca)):
-        plt.scatter(res_pca[i,0],res_pca[i,1])
-    plt.show()
+        plt.scatter(res_pca[i,0],res_pca[i,1],color='black',alpha=0.2)
+    plt.savefig(output)
+    plt.close()
 
 def compute_dist(res_pca, method = "euclidean"):
     ''' compute the distance between each sequence using the eigenvalues of the
@@ -67,6 +82,8 @@ def compute_dist(res_pca, method = "euclidean"):
                  - method  : the method used to compute the distance
         RETURN : - An 2D numpy.array with the distance between each sequence
     '''
+    if verbose > 2:
+        logging.info("compute distances with "+ method + " method")
     temp = scipy.spatial.distance.pdist(res_pca, method)
     return scipy.spatial.distance.squareform(temp)
 
@@ -80,6 +97,8 @@ def compute_clustering_R(distance, linkage = "ward.D"):
     '''
     distance = stats.as_dist(distance)
     clustering = r.hclust(d = distance, method = linkage)
+    if verbose > 2:
+        logging.info("compute clustering with "+ linkage + " method")
     return r.cutree(clustering, 2)
 
 def compute_pairmate(cut, distance):
@@ -90,7 +109,11 @@ def compute_pairmate(cut, distance):
                  - distance : An 2D array with distances between each sequence
         RETURN : - a tupple with the matepair for each group
     '''
-    distance[distance==0.0] = 999
+    if verbose > 2:
+        logging.info("compute pairmate")
+    distance[distance<=0.00000000001] = 999
+    print(distance)
+    print(cut)
     res = []
     for i in range(len(distance)):
         j = np.argmin(distance[i,])
@@ -106,12 +129,17 @@ def plot_clustering( res_pca, group1, group2, output):
                  - output : the name of the output
         NO RETURN
     '''
+    output+="clustering.png"
+    if verbose > 2:
+        logging.info("plot clustering")
+    plt.figure()
     for i in range(len(pca)):
         if i in group1:
             plt.scatter(pca[i,0],pca[i,1],c="r",alpha=0.2)
         elif i in group2:
             plt.scatter(pca[i,0],pca[i,1],c="b",alpha=0.2)
     plt.savefig(output)
+    plt.close()
 
 def save_results_sorted_by_cluster(filename, res, seq_name):
     ''' save the result in a file. Each sequence is associated to its group.
@@ -122,6 +150,8 @@ def save_results_sorted_by_cluster(filename, res, seq_name):
                  - seq_name : a 1D numpy.array with the name of the sequences
         NO RETURN
     '''
+    if verbose > 2:
+        logging.info("save file")
     filename = open(filename,"w")
     for key in res.keys():
         for indice in res[key]:
@@ -137,6 +167,8 @@ def save_results_sorted_by_sequence(filename, res, kmer_name):
                  - seq_name : a 1D numpy.array with the name of the sequences
         NO RETURN
     '''
+    if verbose > 2:
+        logging.info("save file")
     filename = open(filename,"w")
     for i in range(len(kmer_name)):
         for key in res.keys():
@@ -146,7 +178,7 @@ def save_results_sorted_by_sequence(filename, res, kmer_name):
 def get_args():
     ''' get the argument from the command line
         NO ARG
-        RETURN : a tupple with the different arg used in the programm
+        RETURN : a tupple with the different args used in the programm
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("--pairmate", help = "Set mate pair threshold.\
@@ -160,50 +192,74 @@ def get_args():
     parser.add_argument("--sorting",help = "you can sort the output by sequence\
                          or by cluster. default = cluster",
                         choices = ["cluster","sequence"], default ="cluster")
+    parser.add_argument("--verbose","-v", help ="degree of verbose you want",
+                        type=int, default=0)
+    parser.add_argument("--pca", help ="yes if you want to plot the \
+                        pca else : no ", default="no")
     args = parser.parse_args()
-    return args.pairmate, args.input, args.nbcomppca, args.output, args.sorting
+    return args.pairmate, args.input, args.nbcomppca, args.output, \
+           args.sorting, args.pca, args.verbose
 
 
-if __name__ == '__main__':
+pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose = get_args()
+logging.basicConfig(format="%(levelname)s: %(message)s",level=logging.DEBUG)
+rpy2.robjects.numpy2ri.activate()
 
-    pairmate_threshold, kmer_file, nb_comp_pca, outputfile, sorting = get_args()
+logging.info("  pairmate : "+ str(pairmate) +"\n\tnbcomppca : "+str(nbcomp_pca)+
+            "\n\toutputfile : " +str(outputfile) + "\n\tsorted by : "+str(sort)\
+            +"\n\tplot pca : " +str(plot)+ "\n\tverbose : " +str(verbose))
 
-    rpy2.robjects.numpy2ri.activate()
-
-    kmer_name = get_sequences_name(kmer_file)
-    kmer_table = get_kmer_table(kmer_file)
-    res = {}
-    fil = []
-    fil.append(range(len(kmer_table)))
-    r = robjects.r
-    stats = importr("stats")
-    cluster = 0
-    while(fil):
-        kmer_indice = fil.pop()
-        pca = compute_pca(kmer_table[kmer_indice])
-        if len(pca) > nb_comp_pca:
-            distance = compute_dist(pca[:,range(0, nb_comp_pca)])
-        else :
-            distance=compute_dist(pca)
-        cut = compute_clustering_R(distance)
-        mp1,mp2 = compute_pairmate(cut,distance)
-        group1,group2 = [],[]
-        print(mp1,mp2)
-        if mp1 >= pairmate_threshold and mp2 >= pairmate_threshold:
-            for i in range(len(cut)):
-                if cut[i] == 1:
-                    group1.append(i)
-                elif cut[i] == 2:
-                    group2.append(i)
-            plot_clustering(pca,group1,group2,"test.png")
-                # else ERROR
-            print(len(group1)," ", len(group2))
-            fil.append(group1)
-            fil.append(group2)
-        else:
-            res[cluster] = kmer_indice
-            cluster = cluster+1
-    if sorting == 'sequence':
-        save_results_sorted_by_sequence(outputfile,res,kmer_name)
+sequence_name = get_sequences_name(kmer_file)
+kmer_table = get_kmer_table(kmer_file)
+if verbose > 0:
+    logging.info("dim: "+ str(len(kmer_table)) +" "+str(len(kmer_table[0])))
+res = {}
+fil = []
+fil.append(range(len(kmer_table)))
+r = robjects.r
+stats = importr("stats")
+cluster = 0
+while(fil):
+    kmer_indice = fil.pop(0)
+    print(len(kmer_indice))
+    pca = compute_pca(kmer_table[kmer_indice])
+    if verbose > 0:
+        logging.info(len(pca))
+    if len(pca) > nbcomp_pca:
+        distance = compute_dist(pca[:,range(0, nbcomp_pca)])
+    else :
+        distance=compute_dist(pca)
+    cut = compute_clustering_R(distance)
+    mp1,mp2 = compute_pairmate(cut, distance)
+    group1,group2 = [],[]
+    if verbose > 0:
+        logging.info("mp "+str(mp1)+" "+str(mp2))
+    if mp1 >= pairmate and mp2 >= pairmate :
+        plot_output="plot_"+str(cluster)
+        if verbose > 1:
+            logging.info("matepair test ok")
+        for i in range(len(cut)):
+            if cut[i] == 1:
+                group1.append(kmer_indice[i])
+            elif cut[i] == 2:
+                group2.append(kmer_indice[i])
+            else:
+                logging.error("Too many groups in clustering!")
+                sys.exit()
+        if plot=="yes":
+            plot_pca(pca, plot_output)
+            plot_clustering(pca, group1, group2, plot_output)
+        if verbose > 0:
+            logging.info("length "+str(len(group1))+" "+str(len(group2)))
+        fil.append(group1)
+        fil.append(group2)
     else:
-        save_results_sorted_by_cluster(outputfile,res,kmer_name)
+        cluster = cluster+1
+        if verbose > 1:
+            logging.info("matepair test ok")
+        res[cluster] = kmer_indice
+
+if sort == 'sequence':
+    save_results_sorted_by_sequence(outputfile, res, sequence_name)
+else:
+    save_results_sorted_by_cluster(outputfile, res, sequence_name)

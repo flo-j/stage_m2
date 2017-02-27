@@ -75,9 +75,10 @@ clustering_2 = function(data,size,nb_comp){
 	nb_comp = (nb_comp/opt$percent_comp)*100
 	print(nb_comp)
 	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean")
+	print(sample_1_dist)
 	hc_1 = hclust(d = sample_1_dist, method = "ward.D")
 	hc_subtree_n = cutree(hc_1, 2)
-
+	print(hc_subtree_n)
 	if (nrow(data) < size){
 		return(list("classes" = hc_subtree_n, "subtree"  = hc_subtree_n, "DIST" = sample_1_dist))
 	}else{
@@ -99,7 +100,6 @@ test_selfpairmate = function(h_clust, mp){
 	#print(f.mat)
 	result <- t(sapply(seq(nrow(f.mat)), function(i) {
 		j <- which.min(f.mat[i,])
-		print(paste(i,j,f.mat[i,j]))
 		c(paste(rownames(f.mat)[i], colnames(f.mat)[j], sep='/'), f.mat[i,j])
 	}))
 	result = as.data.frame(result)
