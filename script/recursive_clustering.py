@@ -112,8 +112,6 @@ def compute_pairmate(cut, distance):
     if verbose > 2:
         logging.info("compute pairmate")
     distance[distance<=0.00000000001] = 999
-    print(distance)
-    print(cut)
     res = []
     for i in range(len(distance)):
         j = np.argmin(distance[i,])
@@ -122,11 +120,28 @@ def compute_pairmate(cut, distance):
     mp2 = float(res.count('22'))/(res.count('21')+res.count('22'))
     return mp1,mp2
 
+def create_2_groups(cut):
+    ''' Create two groups following clustering results.
+        ARG    : - cut : a rpy2 IntVector with the repartition of the 2 groups
+        RETURN : 2 lists with each group
+
+    '''
+    plot_output="plot_"+str(i)
+    if verbose > 1:
+        logging.info("matepair test ok")
+
+    g1,g2 = [],[]
+    for x in range(len(cut)):
+        (g1,g2)[cut[x] == 1].append(kmer_indice[x])
+        if verbose > 0:
+        logging.info("length "+str(len(g1))+" "+str(len(g2)))
+    return g1, g2
+
 def plot_clustering( res_pca, group1, group2, output):
     ''' plot the 2 first dimension of the pca colored by cluster.
-        ARG    : - res_pca :  an 2D array with the eigenvalues
+        ARG    : - res_pca        : an 2D array with the eigenvalues
                  - group1, group2 : vector of indice
-                 - output : the name of the output
+                 - output         : the name of the output
         NO RETURN
     '''
     output+="clustering.png"
@@ -201,30 +216,41 @@ def get_args():
            args.sorting, args.pca, args.verbose
 
 
+# get args
 pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose = get_args()
+
+# config logging used for verbose
 logging.basicConfig(format="%(levelname)s: %(message)s",level=logging.DEBUG)
-rpy2.robjects.numpy2ri.activate()
 
 logging.info("  pairmate : "+ str(pairmate) +"\n\tnbcomppca : "+str(nbcomp_pca)+
             "\n\toutputfile : " +str(outputfile) + "\n\tsorted by : "+str(sort)\
             +"\n\tplot pca : " +str(plot)+ "\n\tverbose : " +str(verbose))
+
+# config R and rpy2
+r = robjects.r
+stats = importr("stats")
+rpy2.robjects.numpy2ri.activate()
+
 
 sequence_name = get_sequences_name(kmer_file)
 kmer_table = get_kmer_table(kmer_file)
 if verbose > 0:
     logging.info("dim: "+ str(len(kmer_table)) +" "+str(len(kmer_table[0])))
 res = {}
-fil = []
-fil.append(range(len(kmer_table)))
-r = robjects.r
-stats = importr("stats")
+queue = []
+# add a list to the queue with the position of the sequences in the table.
+queue.append(range(len(kmer_table)))
+
+# initialize some variables
 cluster = 0
-while(fil):
-    kmer_indice = fil.pop(0)
-    print(len(kmer_indice))
+i = 0
+
+while(queue):
+    kmer_indice = queue.pop(0) # pop the first value of the queue
     pca = compute_pca(kmer_table[kmer_indice])
     if verbose > 0:
         logging.info(len(pca))
+    # to reduce computation time, we use just nbcomp_pca components if possible
     if len(pca) > nbcomp_pca:
         distance = compute_dist(pca[:,range(0, nbcomp_pca)])
     else :
@@ -235,30 +261,18 @@ while(fil):
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
     if mp1 >= pairmate and mp2 >= pairmate :
-        plot_output="plot_"+str(cluster)
-        if verbose > 1:
-            logging.info("matepair test ok")
-        for i in range(len(cut)):
-            if cut[i] == 1:
-                group1.append(kmer_indice[i])
-            elif cut[i] == 2:
-                group2.append(kmer_indice[i])
-            else:
-                logging.error("Too many groups in clustering!")
-                sys.exit()
+        group1, group2 =create_2_groups(cut)
+        queue.append(group1)
+        queue.append(group2)
         if plot=="yes":
             plot_pca(pca, plot_output)
             plot_clustering(pca, group1, group2, plot_output)
-        if verbose > 0:
-            logging.info("length "+str(len(group1))+" "+str(len(group2)))
-        fil.append(group1)
-        fil.append(group2)
     else:
         cluster = cluster+1
         if verbose > 1:
-            logging.info("matepair test ok")
+            logging.info("matepair test non ok")
         res[cluster] = kmer_indice
-
+    i+=1
 if sort == 'sequence':
     save_results_sorted_by_sequence(outputfile, res, sequence_name)
 else:
