@@ -25,22 +25,24 @@ import rpy2.robjects.numpy2ri
 import rpy2.robjects as robjects
 import argparse
 import logging
+import fastcluster
+
 
 def get_sequences_name(kmer_file):
-    ''' get the names of each sequences who correspond of the first column of
+    ''' get the names of each sequence which correspond to the first column of
         the kmer_file
         ARG    : - kmer_file : the file with the kmer table
-        RETURN : - a 1D numpy.array with the name of the sequences
+        RETURN : - a 1D numpy.array with the sequences' name
     '''
-    if verbose > 2 :
+    if verbose > 2:
         logging.info("get sequences name")
     return np.genfromtxt(kmer_file, skip_header=1, usecols=0, dtype=str)
 
 def get_kmer_table(kmer_file):
-    ''' get the names of each sequences who correspond of the kmer_file except
-        the first column. The name of each col is lost.
+    ''' get the names of each sequence which correspond to the kmer_file except
+        the first column. Column names are lost.
         ARG    : - kmer_file : the filename with the kmer table
-                 - nb_col    : the number of columns in the file
+
         RETURN : - a 2D numpy.array with the kmer frequencies
     '''
     kfile=open(kmer_file,"r")
@@ -52,7 +54,7 @@ def get_kmer_table(kmer_file):
     return np.genfromtxt(kmer_file, skip_header=1, usecols = range(1,nb_col+1))
 
 def compute_pca(kmer_table):
-    ''' compute a Principal composant analysis of the kmer frequencies
+    ''' compute a Principal component analysis of the kmer frequencies
         ARG    : - kmer_table : an 2D array with the kmer frequencies
         RETURN : - An 2D numpy.array with the eigenvalues
     '''
@@ -62,7 +64,7 @@ def compute_pca(kmer_table):
     return pca.fit_transform(kmer_table)
 
 def plot_pca(res_pca,output):
-    ''' plot the 2 first dimension of the pca.
+    ''' plot the first two dimension of pca.
         ARG    : - res_pca : an 2D array with the eigenvalues
         NO RETURN
     '''
@@ -80,19 +82,33 @@ def compute_dist(res_pca, method = "euclidean"):
         PCA. By default the method used is "euclidean"
         ARG    : - res_pca : an 2D array with the eigenvalues
                  - method  : the method used to compute the distance
-        RETURN : - An 2D numpy.array with the distance between each sequence
+        RETURN : - An 2D array with pairwise distances between sequences
     '''
     if verbose > 2:
         logging.info("compute distances with "+ method + " method")
     temp = scipy.spatial.distance.pdist(res_pca, method)
     return scipy.spatial.distance.squareform(temp)
 
+def compute_dist2(res_pca, method = "euclidean"):
+    ''' compute the distance between each sequence using the eigenvalues of the
+        PCA. By default the method used is "euclidean"
+        ARG    : - res_pca : an 2D array with the eigenvalues
+                 - method  : the method used to compute the distance
+        RETURN : - An 2D array with pairwise distances between sequences
+    '''
+    if verbose > 2:
+        logging.info("compute distances with "+ method + " method")
+    return scipy.spatial.distance.pdist(res_pca, method)
+
+def compute_clustering_fast(distance):
+    return fastcluster.ward(distance)
+
 def compute_clustering_R(distance, linkage = "ward.D"):
-    ''' compute clustering using the distance between the sequence using ward.D
-        method. Cut this clustering in 2 groups.
-        ARG    : - distance : An 2D array with distances between each sequence
+    ''' Clustered sequences into 2 groups using ward.D method for distances
+        computation.
+        ARG    : - distance : An 2D array with pairwise distances between sequences
                  - linkage  : The method used for the clustering
-                 - cutoff   : the number of cluster wanted
+
         RETURN : - a rpy2 IntVector with the repartition of the 2 groups
     '''
     distance = stats.as_dist(distance)
@@ -102,12 +118,12 @@ def compute_clustering_R(distance, linkage = "ward.D"):
     return r.cutree(clustering, 2)
 
 def compute_pairmate(cut, distance):
-    ''' compute the pairmate for each 2 group. pairmate correspond to the
-        proportion of each sequence who have the nearest neighbor in the same
-        group.
+    ''' compute the pairmate for the two groups.Pairmate corresponds to the
+        proportion of sequences which has their nearest neighbor in a same group
+
         ARG    : - cut      : a rpy2IntVector with the repartition of the groups
                  - distance : An 2D array with distances between each sequence
-        RETURN : - a tupple with the matepair for each group
+        RETURN : - a tupple with the matepair of each group
     '''
     if verbose > 2:
         logging.info("compute pairmate")
@@ -123,8 +139,7 @@ def compute_pairmate(cut, distance):
 def create_2_groups(cut):
     ''' Create two groups following clustering results.
         ARG    : - cut : a rpy2 IntVector with the repartition of the 2 groups
-        RETURN : 2 lists with each group
-
+        RETURN : 2 lists one for each group
     '''
     plot_output="plot_"+str(i)
     if verbose > 1:
@@ -133,7 +148,7 @@ def create_2_groups(cut):
     g1,g2 = [],[]
     for x in range(len(cut)):
         (g1,g2)[cut[x] == 1].append(kmer_indice[x])
-        if verbose > 0:
+    if verbose > 0:
         logging.info("length "+str(len(g1))+" "+str(len(g2)))
     return g1, g2
 
@@ -148,11 +163,11 @@ def plot_clustering( res_pca, group1, group2, output):
     if verbose > 2:
         logging.info("plot clustering")
     plt.figure()
-    for i in range(len(pca)):
-        if i in group1:
-            plt.scatter(pca[i,0],pca[i,1],c="r",alpha=0.2)
-        elif i in group2:
-            plt.scatter(pca[i,0],pca[i,1],c="b",alpha=0.2)
+    for ind in range(len(pca)):
+        if ind in group1:
+            plt.scatter(res_pca[ind,0],pca[ind,1],c="r",alpha=0.2)
+        elif ind in group2:
+            plt.scatter(res_pca[ind,0],pca[ind,1],c="b",alpha=0.2)
     plt.savefig(output)
     plt.close()
 
@@ -203,7 +218,8 @@ def get_args():
                          used to compute distance. Default = 100",type=int,
                          default = 100)
     parser.add_argument("-o", "--output", help = "name of the outputfile. \
-                        defaut results.txt",default="results.txt")
+                        defaut results/results.txt",
+                        default="results/results.txt")
     parser.add_argument("--sorting",help = "you can sort the output by sequence\
                          or by cluster. default = cluster",
                         choices = ["cluster","sequence"], default ="cluster")
@@ -222,16 +238,20 @@ pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose = get_args()
 # config logging used for verbose
 logging.basicConfig(format="%(levelname)s: %(message)s",level=logging.DEBUG)
 
-logging.info("  pairmate : "+ str(pairmate) +"\n\tnbcomppca : "+str(nbcomp_pca)+
-            "\n\toutputfile : " +str(outputfile) + "\n\tsorted by : "+str(sort)\
+logging.info("  pairmate : "+ str(pairmate) +"\n\tnbcomppca : "+str(nbcomp_pca)\
+           +"\n\toutputfile : " +str(outputfile) + "\n\tsorted by : "+str(sort)\
             +"\n\tplot pca : " +str(plot)+ "\n\tverbose : " +str(verbose))
 
 # config R and rpy2
-r = robjects.r
-stats = importr("stats")
-rpy2.robjects.numpy2ri.activate()
+try:
+    os.mkdir("results")
+except OSError:
+    pass
 
-
+try:
+    os.mkdir("plot")
+except OSError:
+    pass
 sequence_name = get_sequences_name(kmer_file)
 kmer_table = get_kmer_table(kmer_file)
 if verbose > 0:
@@ -242,36 +262,36 @@ queue = []
 queue.append(range(len(kmer_table)))
 
 # initialize some variables
-cluster = 0
+cluster_number = 0
 i = 0
 
 while(queue):
     kmer_indice = queue.pop(0) # pop the first value of the queue
     pca = compute_pca(kmer_table[kmer_indice])
     if verbose > 0:
-        logging.info(len(pca))
+        logging.info(str(len(pca))+" "+str(i))
     # to reduce computation time, we use just nbcomp_pca components if possible
     if len(pca) > nbcomp_pca:
-        distance = compute_dist(pca[:,range(0, nbcomp_pca)])
+        distance = compute_dist2(pca[:,range(0, nbcomp_pca)])
     else :
-        distance=compute_dist(pca)
-    cut = compute_clustering_R(distance)
-    mp1,mp2 = compute_pairmate(cut, distance)
+        distance=compute_dist2(pca)
+    clusters = compute_clustering_fast(distance)
+    mp1,mp2 = compute_pairmate(clusters, distance)
     group1,group2 = [],[]
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
     if mp1 >= pairmate and mp2 >= pairmate :
-        group1, group2 =create_2_groups(cut)
+        group1, group2 =create_2_groups(cluster)
+        if plot=="yes":
+            plot_pca(pca, "plot/"+str(i))
+            plot_clustering(pca, group1, group2, "plot/"+str(i))
         queue.append(group1)
         queue.append(group2)
-        if plot=="yes":
-            plot_pca(pca, plot_output)
-            plot_clustering(pca, group1, group2, plot_output)
     else:
-        cluster = cluster+1
+        cluster_number = cluster_number+1
         if verbose > 1:
             logging.info("matepair test non ok")
-        res[cluster] = kmer_indice
+        res[cluster_number] = kmer_indice
     i+=1
 if sort == 'sequence':
     save_results_sorted_by_sequence(outputfile, res, sequence_name)
