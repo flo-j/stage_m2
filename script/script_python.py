@@ -2,6 +2,7 @@ import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import random
 from sklearn.decomposition import PCA, IncrementalPCA
 from sklearn.cluster import AgglomerativeClustering
 import scipy
@@ -13,6 +14,7 @@ import argparse
 import logging
 import fastcluster
 import scipy.cluster.hierarchy
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 def get_kmer_table(kmer_file):
     ''' get the names of each sequence which correspond to the kmer_file except
@@ -71,7 +73,7 @@ def compute_clustering_fast(distance):
     c=fastcluster.ward(distance)
     t2=time.clock()
     print(t2-t1)
-    return c
+    return scipy.cluster.hierarchy.fcluster(c, 2, criterion="maxclust")
 
 def plot_clustering( res_pca, group1, group2, output):
     ''' plot the 2 first dimension of the pca colored by cluster.
@@ -92,7 +94,7 @@ def plot_clustering( res_pca, group1, group2, output):
     plt.savefig(output)
     plt.close()
 
-def create_2_groups(cut):
+def create_2_groups(cut,kmer_indice):
     ''' Create two groups following clustering results.
         ARG    : - cut : a rpy2 IntVector with the repartition of the 2 groups
         RETURN : 2 lists one for each group
@@ -102,7 +104,7 @@ def create_2_groups(cut):
         logging.info("matepair test ok")
     g1,g2 = [],[]
     for x in range(len(cut)):
-        (g1,g2)[cut[x] == 1].append(x)
+        (g1,g2)[cut[x] == 1].append(kmer_indice[x])
     if verbose > 0:
         logging.info("length "+str(len(g1))+" "+str(len(g2)))
     return g1, g2
@@ -120,12 +122,50 @@ def compute_pairmate(cut, distance):
         logging.info("compute pairmate")
     distance[distance<=0.00000000001] = 999
     res = []
+    print(max(cut),min(cut))
+    if(max(cut)==min(cut)):
+        print(cut)
+        exit("ERROR : max(cut)==min(cut)")
     for i in range(len(distance)):
         j = np.argmin(distance[i,])
         res.append(str(cut[i])+str(cut[j]))
     mp1 = float(res.count('11'))/(res.count('11')+res.count('12'))
     mp2 = float(res.count('22'))/(res.count('21')+res.count('22'))
     return mp1,mp2
+
+def save_results_sorted_by_cluster(filename, res, seq_name):
+    ''' save the result in a file. Each sequence is associated to its group.
+        the result is order by cluster. This function is faster than sorting by
+        sequence.
+        ARG    : - filename : the result filename
+                 - res      : a dict with cluster as keys and the seq as value
+                 - seq_name : a 1D numpy.array with the name of the sequences
+        NO RETURN
+    '''
+    if verbose > 2:
+        logging.info("save file")
+    filename = open(filename,"w")
+    for key in res.keys():
+        for indice in res[key]:
+            towrite = str(seq_name[indice])+"  "+str(key)+"\n"
+            filename.write(towrite)
+
+def save_results_sorted_by_sequence(filename, res, kmer_name):
+    ''' save the result in a file. Each sequence is associated to its group.
+        the result is order by sequence. Attention! This function is slower than
+        sorting by cluster.
+        ARG    : - filename : the result filename
+                 - res      : a dict with cluster as keys and the seq as value
+                 - seq_name : a 1D numpy.array with the name of the sequences
+        NO RETURN
+    '''
+    if verbose > 2:
+        logging.info("save file")
+    filename = open(filename,"w")
+    for i in range(len(kmer_name)):
+        for key in res.keys():
+            if i in res[key]:
+                filename.write(kmer_name[i]+"   "+str(key)+"\n")
 
 def get_args():
     ''' get the argument from the command line
@@ -162,32 +202,45 @@ queue = []
 # initialize some variables
 cluster_number = 0
 i = 0
-
+size = 100000
+sequence_name = get_sequences_name(kmer_file)
 kmer_table=get_kmer_table(kmer_file)
 queue.append(range(len(kmer_table)))
-
 while(queue):
     kmer_indice = queue.pop(0) # pop the first value of the queue
     pca = compute_pca(kmer_table[kmer_indice])
     if verbose > 0:
         logging.info(str(len(pca))+" "+str(i))
     # to reduce computation time, we use just nbcomp_pca components if possible
+    if(len(kmer_indice) > size):
+        print("douze")
+        sample=range(len(kmer_indice))
+        kmer_sample = random.sample(sample, size)
+    else:
+        print("quatorze")
+        kmer_sample=range(len(kmer_indice))
     if len(pca) > nbcomp_pca:
-        distance = compute_dist2(pca[:,range(0, nbcomp_pca)])
-    else :
-        distance=compute_dist2(pca)
-    clust_fast = compute_clustering_fast(distance)
-    clusters = scipy.cluster.hierarchy.fcluster(clust_fast, 2, criterion="maxclust")
+        pca=pca[:,range(nbcomp_pca)]
+    #    distance = compute_dist2(pca[kmer_sample,:])###
+    distance = compute_dist2(pca[kmer_sample,:])#
+    clusters = compute_clustering_fast(distance)
+    if(len(kmer_indice) > size):
+        print("vingt-un")
+        clf = LinearDiscriminantAnalysis()
+        clf.fit(pca[kmer_sample,:], clusters)
+        clusters2 = clf.predict(pca[range(len(kmer_indice)),:])
+    else:
+        clusters2=clusters
     mp1,mp2 = compute_pairmate(clusters, scipy.spatial.distance.squareform(distance))
     print("mp1 "+str(mp1)+' mp2 '+str(mp2))
     group1,group2 = [],[]
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
     if mp1 >= pairmate and mp2 >= pairmate :
-        group1, group2 =create_2_groups(clusters)
-        if plot=="yes":
-            plot_pca(pca, "plot/"+str(i))
-            plot_clustering(pca, group1, group2, "plot/"+str(i))
+        print("quinze")
+        group1, group2 =create_2_groups(clusters2, kmer_indice)
+        print(group1)
+        print(group2)
         queue.append(group1)
         queue.append(group2)
     else:
