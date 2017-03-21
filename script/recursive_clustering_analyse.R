@@ -76,7 +76,7 @@ clustering_2 = function(data,size,nb_comp){
 	print(nb_comp)
 	sample_1_dist = dist(data[sample_1_id,1:nb_comp],method = "euclidean")
 	print(sample_1_dist)
-	hc_1 = hclust(d = sample_1_dist, method = "ward.D")
+	hc_1 = hclust(d = sample_1_dist, method = "ward.D2")
 	hc_subtree_n = cutree(hc_1, 2)
 	print(hc_subtree_n)
 	if (nrow(data) < size){

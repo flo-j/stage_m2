@@ -125,7 +125,8 @@ def compute_pairmate(cut, distance):
     print(max(cut),min(cut))
     if(max(cut)==min(cut)):
         print(cut)
-        exit("ERROR : max(cut)==min(cut)")
+#        exit("ERROR : max(cut)==min(cut)")
+        return(0,0)
     for i in range(len(distance)):
         j = np.argmin(distance[i,])
         res.append(str(cut[i])+str(cut[j]))
@@ -189,26 +190,32 @@ def get_args():
                         type=int, default=0)
     parser.add_argument("--pca", help ="yes if you want to plot the \
                         pca else : no ", default="no")
+    parser.add_argument("--lda", help ="size of lda ", default="75000")
     args = parser.parse_args()
     return args.pairmate, args.input, args.nbcomppca, args.output, \
-           args.sorting, args.pca, args.verbose
+           args.sorting, args.pca, args.verbose, args.lda
 
 
 # get args
-pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose = get_args()
+pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose, lda = get_args()
 res = {}
 queue = []
 
 # initialize some variables
 cluster_number = 0
 i = 0
-size = 100000
+#size = len(kmer_indice)
 sequence_name = get_sequences_name(kmer_file)
 kmer_table=get_kmer_table(kmer_file)
 queue.append(range(len(kmer_table)))
+size = int(lda)
+print("size : ",size)
 while(queue):
     kmer_indice = queue.pop(0) # pop the first value of the queue
+    print("kmerindice : ",kmer_indice)
     pca = compute_pca(kmer_table[kmer_indice])
+    print("kmer_table[kmer_indice] : ", kmer_table[kmer_indice])
+    print("pca : ",pca)
     if verbose > 0:
         logging.info(str(len(pca))+" "+str(i))
     # to reduce computation time, we use just nbcomp_pca components if possible
@@ -219,11 +226,15 @@ while(queue):
     else:
         print("quatorze")
         kmer_sample=range(len(kmer_indice))
+    print("kmer_sample : ",kmer_sample)
     if len(pca) > nbcomp_pca:
         pca=pca[:,range(nbcomp_pca)]
     #    distance = compute_dist2(pca[kmer_sample,:])###
+    print("pca : ", pca)
     distance = compute_dist2(pca[kmer_sample,:])#
+    print("distance : ", distance)
     clusters = compute_clustering_fast(distance)
+    print("clusters : ",clusters)
     if(len(kmer_indice) > size):
         print("vingt-un")
         clf = LinearDiscriminantAnalysis()
@@ -231,6 +242,7 @@ while(queue):
         clusters2 = clf.predict(pca[range(len(kmer_indice)),:])
     else:
         clusters2=clusters
+    print("clusters2 : ",clusters2)
     mp1,mp2 = compute_pairmate(clusters, scipy.spatial.distance.squareform(distance))
     print("mp1 "+str(mp1)+' mp2 '+str(mp2))
     group1,group2 = [],[]
@@ -239,8 +251,8 @@ while(queue):
     if mp1 >= pairmate and mp2 >= pairmate :
         print("quinze")
         group1, group2 =create_2_groups(clusters2, kmer_indice)
-        print(group1)
-        print(group2)
+        print("goup 1 : ", group1)
+        print("gourp 2 : ", group2)
         queue.append(group1)
         queue.append(group2)
     else:
@@ -248,7 +260,12 @@ while(queue):
         if verbose > 1:
             logging.info("matepair test non ok")
         res[cluster_number] = kmer_indice
+        print(kmer_indice)
     i+=1
+
+
+
+
 if sort == 'sequence':
     save_results_sorted_by_sequence(outputfile, res, sequence_name)
 else:

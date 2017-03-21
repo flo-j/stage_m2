@@ -281,7 +281,6 @@ while(queue):
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
     if mp1 >= pairmate and mp2 >= pairmate :
-        group1, group2 =create_2_groups(cluster)
         if plot=="yes":
             plot_pca(pca, "plot/"+str(i))
             plot_clustering(pca, group1, group2, "plot/"+str(i))
