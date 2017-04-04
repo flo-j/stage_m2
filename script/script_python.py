@@ -235,7 +235,8 @@ while(queue):
     print("distance : ", distance)
     clusters = compute_clustering_fast(distance)
     print("clusters : ",clusters)
-    if(len(kmer_indice) > size):
+    if(len(kmer_indice) > 10):
+        diff = list( set(kmer_indice) - set(kmer_sample) )
         print("vingt-un")
         clf = LinearDiscriminantAnalysis()
         clf.fit(pca[kmer_sample,:], clusters)
@@ -262,9 +263,6 @@ while(queue):
         res[cluster_number] = kmer_indice
         print(kmer_indice)
     i+=1
-
-
-
 
 if sort == 'sequence':
     save_results_sorted_by_sequence(outputfile, res, sequence_name)
