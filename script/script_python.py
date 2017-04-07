@@ -130,9 +130,60 @@ def compute_pairmate(cut, distance):
     for i in range(len(distance)):
         j = np.argmin(distance[i,])
         res.append(str(cut[i])+str(cut[j]))
+        if i == 1:
+            print(min(distance[i,]))
+    #    print(j)
     mp1 = float(res.count('11'))/(res.count('11')+res.count('12'))
     mp2 = float(res.count('22'))/(res.count('21')+res.count('22'))
-    return mp1,mp2
+    return mp1,mp2,res
+
+def compute_pairmate2(cut, distance):
+    ''' compute the pairmate for the two groups.Pairmate corresponds to the
+        proportion of sequences which has their nearest neighbor in a same group
+
+        ARG    : - cut      : a rpy2IntVector with the repartition of the groups
+                 - distance : An 2D array with distances between each sequence
+        RETURN : - a tupple with the matepair of each group
+    '''
+    if verbose > 2:
+        logging.info("compute pairmate")
+    res = []
+    n = len(cut)
+    distance[distance<=0.00000000001] = 999
+    line = distance[0:n-1]
+    line = line.tolist()
+    line.insert(0,999)
+    j = np.argmin(np.asarray(line)) ###
+    res.append(str(cut[0])+str(cut[j]))
+    line = []
+    for i in range(1,n):
+        line = []
+        pos = i - 1
+        line.append(distance[pos])
+        k = 1
+        while k < i:
+            pos = pos + n - k -1
+            line.append(distance[pos])
+            k=k+1
+        line.append(999)
+        pos = pos +n-k
+        if i != n-1 :
+            # p = pos
+            # while pos != p +n -k -1:
+            #     line.append(distance[pos])
+            #     pos = pos + 1
+            # #    print(pos," ",len(distance))
+            line2 = distance[pos:pos+n-k-1]
+            line = line + line2.tolist()
+        j = np.argmin(np.asarray(line)) # douze
+        res.append(str(cut[i])+str(cut[j]))
+        if i == 1:
+            print(min(line))
+    #    print(j)
+
+    mp1 = float(res.count('11'))/(res.count('11')+res.count('12'))
+    mp2 = float(res.count('22'))/(res.count('21')+res.count('22'))
+    return mp1,mp2,res
 
 def save_results_sorted_by_cluster(filename, res, seq_name):
     ''' save the result in a file. Each sequence is associated to its group.
@@ -212,48 +263,56 @@ size = int(lda)
 print("size : ",size)
 while(queue):
     kmer_indice = queue.pop(0) # pop the first value of the queue
-    print("kmerindice : ",kmer_indice)
+    #print("kmerindice : ",kmer_indice)
     pca = compute_pca(kmer_table[kmer_indice])
-    print("kmer_table[kmer_indice] : ", kmer_table[kmer_indice])
-    print("pca : ",pca)
+    #print("kmer_table[kmer_indice] : ", kmer_table[kmer_indice])
+    #print("pca : ",pca)
     if verbose > 0:
         logging.info(str(len(pca))+" "+str(i))
     # to reduce computation time, we use just nbcomp_pca components if possible
     if(len(kmer_indice) > size):
-        print("douze")
+    #    print("douze")
         sample=range(len(kmer_indice))
         kmer_sample = random.sample(sample, size)
     else:
-        print("quatorze")
+    #    print("quatorze")
         kmer_sample=range(len(kmer_indice))
-    print("kmer_sample : ",kmer_sample)
+    #print("kmer_sample : ",kmer_sample)
     if len(pca) > nbcomp_pca:
         pca=pca[:,range(nbcomp_pca)]
     #    distance = compute_dist2(pca[kmer_sample,:])###
-    print("pca : ", pca)
+    #print("pca : ", pca)
     distance = compute_dist2(pca[kmer_sample,:])#
-    print("distance : ", distance)
+    #print("distance : ", distance)
     clusters = compute_clustering_fast(distance)
-    print("clusters : ",clusters)
+#    print("clusters : ",clusters)
     if(len(kmer_indice) > 10):
         diff = list( set(kmer_indice) - set(kmer_sample) )
-        print("vingt-un")
+#        print("vingt-un")
         clf = LinearDiscriminantAnalysis()
         clf.fit(pca[kmer_sample,:], clusters)
         clusters2 = clf.predict(pca[range(len(kmer_indice)),:])
     else:
         clusters2=clusters
-    print("clusters2 : ",clusters2)
-    mp1,mp2 = compute_pairmate(clusters, scipy.spatial.distance.squareform(distance))
-    print("mp1 "+str(mp1)+' mp2 '+str(mp2))
+#    print("clusters2 : ",clusters2)
+    print("---------------------------------------------")
+    mp1,mp2,res1 = compute_pairmate(clusters, scipy.spatial.distance.squareform(distance))
+    print("---------------------------------------------")
+    mp12,mp22,res2 = compute_pairmate2(clusters, distance)
+    print("---------------------------------------------")
+    print("mp1  "+str(mp1)+' mp2  '+str(mp2))
+    print("mp12 "+str(mp12)+' mp22 '+str(mp22))
+    #print(res1)
+    #print(res2)
+
     group1,group2 = [],[]
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
     if mp1 >= pairmate and mp2 >= pairmate :
-        print("quinze")
+#        print("quinze")
         group1, group2 =create_2_groups(clusters2, kmer_indice)
-        print("goup 1 : ", group1)
-        print("gourp 2 : ", group2)
+    #    print("goup 1 : ", group1)
+        #print("gourp 2 : ", group2)
         queue.append(group1)
         queue.append(group2)
     else:
@@ -261,7 +320,7 @@ while(queue):
         if verbose > 1:
             logging.info("matepair test non ok")
         res[cluster_number] = kmer_indice
-        print(kmer_indice)
+    #    print(kmer_indice)
     i+=1
 
 if sort == 'sequence':
