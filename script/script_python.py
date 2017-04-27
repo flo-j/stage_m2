@@ -47,10 +47,11 @@ def compute_pca(kmer_table):
         RETURN : - An 2D numpy.array with the eigenvalues
     '''
     pca = PCA()
-    print("compute pca")
     if verbose > 2:
         logging.info("compute pca")
-    return pca.fit_transform(kmer_table)
+    pca.fit(kmer_table)
+    expl_var_ratio = sum(pca.explained_variance_ratio_[0:nbcomp_pca])
+    return pca.fit_transform(kmer_table), expl_var_ratio
 
 
 def compute_dist2(res_pca, method = "euclidean"):
@@ -65,14 +66,13 @@ def compute_dist2(res_pca, method = "euclidean"):
         logging.info("compute distances with "+ method + " method")
     d =  scipy.spatial.distance.pdist(res_pca, method)
     t2=time.clock()
-    print(t2-t1)
-    return d
+    dist_time = t2 - t1
+    return d, dist_time
 
 def compute_clustering_fast(distance):
     t1=time.clock()
     c=fastcluster.ward(distance)
     t2=time.clock()
-    print(t2-t1)
     return scipy.cluster.hierarchy.fcluster(c, 2, criterion="maxclust")
 
 def plot_clustering( res_pca, group1, group2, output):
@@ -149,6 +149,8 @@ def compute_pairmate2(cut, distance):
         logging.info("compute pairmate")
     res = []
     n = len(cut)
+    if(max(cut)==min(cut)):
+        return 0,0
     distance[distance<=0.00000000001] = 999
     line = distance[0:n-1]
     line = line.tolist()
@@ -168,22 +170,16 @@ def compute_pairmate2(cut, distance):
         line.append(999)
         pos = pos +n-k
         if i != n-1 :
-            # p = pos
-            # while pos != p +n -k -1:
-            #     line.append(distance[pos])
-            #     pos = pos + 1
-            # #    print(pos," ",len(distance))
             line2 = distance[pos:pos+n-k-1]
             line = line + line2.tolist()
         j = np.argmin(np.asarray(line)) # douze
         res.append(str(cut[i])+str(cut[j]))
-        if i == 1:
-            print(min(line))
-    #    print(j)
+        # if i == 1:
+        #     print(min(line))
 
     mp1 = float(res.count('11'))/(res.count('11')+res.count('12'))
     mp2 = float(res.count('22'))/(res.count('21')+res.count('22'))
-    return mp1,mp2,res
+    return mp1,mp2
 
 def save_results_sorted_by_cluster(filename, res, seq_name):
     ''' save the result in a file. Each sequence is associated to its group.
@@ -229,8 +225,8 @@ def get_args():
                           default = 0.95", type = float, default = 0.95)
     parser.add_argument("input", help = "INPUT kmer table file")
     parser.add_argument("--nbcomppca", help = "Number of composante of pca\
-                         used to compute distance. Default = 100",type=int,
-                         default = 100)
+                         used to compute distance. Default = 500", type=int,
+                         default = 500)
     parser.add_argument("-o", "--output", help = "name of the outputfile. \
                         defaut results/results.txt",
                         default="results/results.txt")
@@ -248,6 +244,7 @@ def get_args():
 
 
 # get args
+t1=time.clock()
 pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose, lda = get_args()
 res = {}
 queue = []
@@ -260,59 +257,39 @@ sequence_name = get_sequences_name(kmer_file)
 kmer_table=get_kmer_table(kmer_file)
 queue.append(range(len(kmer_table)))
 size = int(lda)
-print("size : ",size)
+#print("size : ",size)
 while(queue):
     kmer_indice = queue.pop(0) # pop the first value of the queue
-    #print("kmerindice : ",kmer_indice)
-    pca = compute_pca(kmer_table[kmer_indice])
-    #print("kmer_table[kmer_indice] : ", kmer_table[kmer_indice])
-    #print("pca : ",pca)
+    pca, expl_var_ratio = compute_pca(kmer_table[kmer_indice])
+    nb_comp_dispo = len(pca[0])
     if verbose > 0:
         logging.info(str(len(pca))+" "+str(i))
     # to reduce computation time, we use just nbcomp_pca components if possible
     if(len(kmer_indice) > size):
-    #    print("douze")
         sample=range(len(kmer_indice))
         kmer_sample = random.sample(sample, size)
     else:
-    #    print("quatorze")
         kmer_sample=range(len(kmer_indice))
-    #print("kmer_sample : ",kmer_sample)
     if len(pca) > nbcomp_pca:
         pca=pca[:,range(nbcomp_pca)]
-    #    distance = compute_dist2(pca[kmer_sample,:])###
-    #print("pca : ", pca)
-    distance = compute_dist2(pca[kmer_sample,:])#
-    #print("distance : ", distance)
+    distance, dist_time = compute_dist2(pca[kmer_sample,:])#
+    print(expl_var_ratio,'\t',dist_time,'\t',nb_comp_dispo,'\t',len(pca))
     clusters = compute_clustering_fast(distance)
-#    print("clusters : ",clusters)
     if(len(kmer_indice) > 10):
         diff = list( set(kmer_indice) - set(kmer_sample) )
-#        print("vingt-un")
         clf = LinearDiscriminantAnalysis()
         clf.fit(pca[kmer_sample,:], clusters)
         clusters2 = clf.predict(pca[range(len(kmer_indice)),:])
     else:
         clusters2=clusters
-#    print("clusters2 : ",clusters2)
-    print("---------------------------------------------")
-    mp1,mp2,res1 = compute_pairmate(clusters, scipy.spatial.distance.squareform(distance))
-    print("---------------------------------------------")
-    mp12,mp22,res2 = compute_pairmate2(clusters, distance)
-    print("---------------------------------------------")
-    print("mp1  "+str(mp1)+' mp2  '+str(mp2))
-    print("mp12 "+str(mp12)+' mp22 '+str(mp22))
-    #print(res1)
-    #print(res2)
+    #mp1,mp2,res1 = compute_pairmate(clusters, scipy.spatial.distance.squareform(distance))
 
+    mp1, mp2 = compute_pairmate2(clusters, distance)
     group1,group2 = [],[]
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
     if mp1 >= pairmate and mp2 >= pairmate :
-#        print("quinze")
         group1, group2 =create_2_groups(clusters2, kmer_indice)
-    #    print("goup 1 : ", group1)
-        #print("gourp 2 : ", group2)
         queue.append(group1)
         queue.append(group2)
     else:
@@ -320,10 +297,11 @@ while(queue):
         if verbose > 1:
             logging.info("matepair test non ok")
         res[cluster_number] = kmer_indice
-    #    print(kmer_indice)
     i+=1
 
 if sort == 'sequence':
     save_results_sorted_by_sequence(outputfile, res, sequence_name)
 else:
     save_results_sorted_by_cluster(outputfile, res, sequence_name)
+t2=time.clock()
+print(t2-t1)
