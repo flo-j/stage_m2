@@ -238,14 +238,16 @@ def get_args():
     parser.add_argument("--pca", help ="yes if you want to plot the \
                         pca else : no ", default="no")
     parser.add_argument("--lda", help ="size of lda ", default="75000")
+    parser.add_argument("--maxsizefamily", help ="size max of a family ",
+                        type= float, default=0.4)
     args = parser.parse_args()
     return args.pairmate, args.input, args.nbcomppca, args.output, \
-           args.sorting, args.pca, args.verbose, args.lda
+           args.sorting, args.pca, args.verbose, args.lda, args.maxsizefamily
 
 
 # get args
 t1=time.clock()
-pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose, lda = get_args()
+pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose, lda, maxfam = get_args()
 res = {}
 queue = []
 
@@ -257,6 +259,7 @@ sequence_name = get_sequences_name(kmer_file)
 kmer_table=get_kmer_table(kmer_file)
 queue.append(range(len(kmer_table)))
 size = int(lda)
+familysize = int(maxfam*len(kmer_table))
 #print("size : ",size)
 while(queue):
     kmer_indice = queue.pop(0) # pop the first value of the queue
@@ -275,7 +278,7 @@ while(queue):
     distance, dist_time = compute_dist2(pca[kmer_sample,:])#
     print(expl_var_ratio,'\t',dist_time,'\t',nb_comp_dispo,'\t',len(pca))
     clusters = compute_clustering_fast(distance)
-    if(len(kmer_indice) > 10):
+    if(len(kmer_indice) > size):
         diff = list( set(kmer_indice) - set(kmer_sample) )
         clf = LinearDiscriminantAnalysis()
         clf.fit(pca[kmer_sample,:], clusters)
@@ -286,12 +289,23 @@ while(queue):
 
     mp1, mp2 = compute_pairmate2(clusters, distance)
     group1,group2 = [],[]
+    print(mp1,mp2)
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
     if mp1 >= pairmate and mp2 >= pairmate :
+        if max(clusters2)==min(clusters2):
+            exit("LDA problem")
         group1, group2 =create_2_groups(clusters2, kmer_indice)
-        queue.append(group1)
-        queue.append(group2)
+        if(len(group1)>familysize):
+            queue.append(group1)
+        else:
+            cluster_number = cluster_number+1
+            res[cluster_number] = group1
+        if(len(group2)>familysize):
+            queue.append(group2)
+        else:
+            cluster_number = cluster_number+1
+            res[cluster_number] = group2
     else:
         cluster_number = cluster_number+1
         if verbose > 1:
