@@ -125,7 +125,6 @@ def compute_pairmate(cut, distance):
     print(max(cut),min(cut))
     if(max(cut)==min(cut)):
         print(cut)
-#        exit("ERROR : max(cut)==min(cut)")
         return(0,0)
     for i in range(len(distance)):
         j = np.argmin(distance[i,])
@@ -174,9 +173,6 @@ def compute_pairmate2(cut, distance):
             line = line + line2.tolist()
         j = np.argmin(np.asarray(line)) # douze
         res.append(str(cut[i])+str(cut[j]))
-        # if i == 1:
-        #     print(min(line))
-
     mp1 = float(res.count('11'))/(res.count('11')+res.count('12'))
     mp2 = float(res.count('22'))/(res.count('21')+res.count('22'))
     return mp1,mp2
@@ -239,7 +235,7 @@ def get_args():
                         pca else : no ", default="no")
     parser.add_argument("--lda", help ="size of lda ", default="75000")
     parser.add_argument("--maxsizefamily", help ="size max of a family ",
-                        type= float, default=0.4)
+                        type= float, default=0.1)
     args = parser.parse_args()
     return args.pairmate, args.input, args.nbcomppca, args.output, \
            args.sorting, args.pca, args.verbose, args.lda, args.maxsizefamily
@@ -247,7 +243,8 @@ def get_args():
 
 # get args
 t1=time.clock()
-pairmate, kmer_file, nbcomp_pca, outputfile, sort, plot, verbose, lda, maxfam = get_args()
+pairmate, kmer_file, nbcomp_pca, outputfile, \
+sort, plot, verbose, lda, maxfam = get_args()
 res = {}
 queue = []
 
@@ -275,7 +272,7 @@ while(queue):
         kmer_sample=range(len(kmer_indice))
     if len(pca) > nbcomp_pca:
         pca=pca[:,range(nbcomp_pca)]
-    distance, dist_time = compute_dist2(pca[kmer_sample,:])#
+    distance, dist_time = compute_dist2(pca[kmer_sample,:])
     print(expl_var_ratio,'\t',dist_time,'\t',nb_comp_dispo,'\t',len(pca))
     clusters = compute_clustering_fast(distance)
     if(len(kmer_indice) > size):
@@ -285,10 +282,8 @@ while(queue):
         clusters2 = clf.predict(pca[range(len(kmer_indice)),:])
     else:
         clusters2=clusters
-    #mp1,mp2,res1 = compute_pairmate(clusters, scipy.spatial.distance.squareform(distance))
-
     mp1, mp2 = compute_pairmate2(clusters, distance)
-    group1,group2 = [],[]
+    group1, group2 = [],[]
     print(mp1,mp2)
     if verbose > 0:
         logging.info("mp "+str(mp1)+" "+str(mp2))
