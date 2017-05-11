@@ -1,17 +1,27 @@
+# Florence Jornod <florence@jornod.com>
+
+#################################################################################
+
+#This work is licensed under the Creative Commons Attribution-ShareAlike 3.0
+#Unported License. To view a copy of this license,
+#visit http://creativecommons.org/licenses/by-sa/3.0/
+# or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+
+#################################################################################
+
+# A computer program does what you tell it to do, not what you want it to do
+#-- Greer's Law
+
+# example : python3 script_python.py ../data/nt011630.rev.monomers.fst_149.length_166_177.kmers5 -o res.txt -- --pairmate 0.90
+
 import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 import random
 from sklearn.decomposition import PCA, IncrementalPCA
-from sklearn.cluster import AgglomerativeClustering
 import scipy
-from rpy2 import *
-from rpy2.robjects.packages import importr
-import rpy2.robjects.numpy2ri
-import rpy2.robjects as robjects
 import argparse
-import logging
 import fastcluster
 import scipy.cluster.hierarchy
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
@@ -221,8 +231,8 @@ def get_args():
                           default = 0.95", type = float, default = 0.95)
     parser.add_argument("input", help = "INPUT kmer table file")
     parser.add_argument("--nbcomppca", help = "Number of composante of pca\
-                         used to compute distance. Default = 500", type=int,
-                         default = 500)
+                         used to compute distance. Default = 1024", type=int,
+                         default = 1024)
     parser.add_argument("-o", "--output", help = "name of the outputfile. \
                         defaut results/results.txt",
                         default="results/results.txt")
@@ -235,7 +245,7 @@ def get_args():
                         pca else : no ", default="no")
     parser.add_argument("--lda", help ="size of lda ", default="75000")
     parser.add_argument("--maxsizefamily", help ="size max of a family ",
-                        type= float, default=0.1)
+                        type= float, default=0)
     args = parser.parse_args()
     return args.pairmate, args.input, args.nbcomppca, args.output, \
            args.sorting, args.pca, args.verbose, args.lda, args.maxsizefamily
@@ -258,6 +268,11 @@ queue.append(range(len(kmer_table)))
 size = int(lda)
 familysize = int(maxfam*len(kmer_table))
 #print("size : ",size)
+filename = open(outputfile,"w")
+filename.write("input filename :" +kmer_file+" pairmate : " + str(pairmate) + \
+ " nb comp pca : " + str(nbcomp_pca) + " size min family : " + str(familysize)\
+ + " lda :"+ lda + "\n")
+
 while(queue):
     kmer_indice = queue.pop(0) # pop the first value of the queue
     pca, expl_var_ratio = compute_pca(kmer_table[kmer_indice])
